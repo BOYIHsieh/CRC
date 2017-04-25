@@ -65,11 +65,14 @@ void CACHE_REPLACEMENT_STATE::InitReplacementState()
         {
             // initialize stack position (for true LRU)
             repl[ setIndex ][ way ].LRUstackposition = way;
+            repl[ setIndex ][ way ].access_num = 0;
+            repl[ setIndex ][ way ].is_protected = 0;
         }
     }
 
     // Contestants:  ADD INITIALIZATION FOR YOUR HARDWARE HERE
-
+    protected_size = assoc - assoc / 4;
+    threshold = 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -102,6 +105,7 @@ INT32 CACHE_REPLACEMENT_STATE::GetVictimInSet( UINT32 tid, UINT32 setIndex, cons
     else if( replPolicy == CRC_REPL_CONTESTANT )
     {
         // Contestants:  ADD YOUR VICTIM SELECTION FUNCTION HERE
+        return Get_HYF_Victim( setIndex );
     }
 
     // We should never get here
@@ -138,6 +142,7 @@ void CACHE_REPLACEMENT_STATE::UpdateReplacementState(
         // Contestants:  ADD YOUR UPDATE REPLACEMENT STATE FUNCTION HERE
         // Feel free to use any of the input parameters to make
         // updates to your replacement policy
+        UpdateHYF(setIndex, updateWayID );
     }
     
     
@@ -190,6 +195,27 @@ INT32 CACHE_REPLACEMENT_STATE::Get_Random_Victim( UINT32 setIndex )
     return way;
 }
 
+INT32 CACHE_REPLACEMENT_STATE::Get_HYF_Victim(UINT32 setIndex)
+{
+    // Get pointer to replacement state of current set
+    LINE_REPLACEMENT_STATE *replSet = repl[ setIndex ];
+    INT32   lruWay   = 0;
+
+    // Search for victim whose stack position is assoc-1
+    for(UINT32 way=0; way<assoc; way++) 
+    {
+        if( replSet[way].LRUstackposition == 0 ) 
+        {
+            lruWay = way;
+            break;
+        }
+    }
+
+    // return lru way
+    replSet[lruWay].access_num = 0;
+    return lruWay;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 // This function implements the LRU update routine for the traditional        //
@@ -216,6 +242,61 @@ void CACHE_REPLACEMENT_STATE::UpdateLRU( UINT32 setIndex, INT32 updateWayID )
     repl[ setIndex ][ updateWayID ].LRUstackposition = 0;
 }
 
+void  CACHE_REPLACEMENT_STATE::UpdateHYF( UINT32 setIndex, INT32 updateWayID)
+{
+    //UpdateLRU(setIndex,updateWayID);
+    //return;
+    LINE_REPLACEMENT_STATE *replSet = repl[ setIndex ];
+    UINT32 currLRUstackposition = replSet[updateWayID].LRUstackposition;
+    replSet[updateWayID].access_num ++;
+    if(currLRUstackposition < protected_size)
+        //not protected
+    {
+        if(replSet[updateWayID].access_num >= threshold)
+        //if(true)
+            //need added into protected
+        {
+            UINT32 protected_tail = -1;
+            for(UINT32 way = 0;way < assoc;way++)
+            {
+                if(replSet[way].LRUstackposition > currLRUstackposition
+                     && replSet[way].LRUstackposition < protected_size)
+                    replSet[way].LRUstackposition--;
+                if(replSet[way].LRUstackposition == assoc - 1)
+                    protected_tail = way;
+            }
+            replSet[updateWayID].LRUstackposition = assoc - 1;
+            replSet[protected_tail].LRUstackposition = protected_size - 1;
+            replSet[protected_tail].access_num = threshold - 1;
+        }
+        else
+        {
+            for(UINT32 way=0; way<assoc; way++) 
+            {
+                if( replSet[way].LRUstackposition > currLRUstackposition 
+                    && replSet[way].LRUstackposition < protected_size - 1) 
+                {
+                    replSet[way].LRUstackposition--;
+                }
+            }
+            replSet[updateWayID].LRUstackposition = protected_size - 1;
+        }
+    }
+    else
+        //protected
+    {
+        for(UINT32 way=0; way<assoc; way++) 
+        {
+            if( replSet[way].LRUstackposition > currLRUstackposition 
+                && replSet[way].LRUstackposition < assoc - 1) 
+            {
+                replSet[way].LRUstackposition--;
+            }
+        }
+        replSet[updateWayID].LRUstackposition = assoc - 1;
+    }
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //                                                                            //
 // The function prints the statistics for the cache                           //
@@ -233,4 +314,3 @@ ostream & CACHE_REPLACEMENT_STATE::PrintStats(ostream &out)
     return out;
     
 }
-

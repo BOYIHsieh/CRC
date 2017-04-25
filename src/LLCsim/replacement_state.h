@@ -35,6 +35,8 @@ typedef struct
     UINT32  LRUstackposition;
 
     // CONTESTANTS: Add extra state per cache line here
+    UINT32  access_num;
+    UINT32  is_protected;
 
 } LINE_REPLACEMENT_STATE;
 
@@ -53,6 +55,8 @@ class CACHE_REPLACEMENT_STATE
     COUNTER mytimer;  // tracks # of references to the cache
 
     // CONTESTANTS:  Add extra state for cache here
+    UINT32 protected_size;
+    UINT32 threshold;
 
   public:
 
@@ -77,6 +81,9 @@ class CACHE_REPLACEMENT_STATE
 
     INT32  Get_LRU_Victim( UINT32 setIndex );
     void   UpdateLRU( UINT32 setIndex, INT32 updateWayID );
+
+    INT32  Get_HYF_Victim( UINT32 setIndex);
+    void   UpdateHYF( UINT32 setIndex, INT32 updateWayID);
 };
 
 
