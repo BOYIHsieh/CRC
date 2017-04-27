@@ -55,7 +55,7 @@ class CACHE_REPLACEMENT_STATE
     COUNTER mytimer;  // tracks # of references to the cache
 
     // CONTESTANTS:  Add extra state for cache here
-    UINT32 protected_size;
+    UINT32 A_size;
     UINT32 threshold;
 
   public:

@@ -71,7 +71,7 @@ void CACHE_REPLACEMENT_STATE::InitReplacementState()
     }
 
     // Contestants:  ADD INITIALIZATION FOR YOUR HARDWARE HERE
-    protected_size = assoc - assoc / 4;
+    A_size = assoc - assoc / 4;
     threshold = 1;
 }
 
@@ -212,7 +212,7 @@ INT32 CACHE_REPLACEMENT_STATE::Get_HYF_Victim(UINT32 setIndex)
     }
 
     // return lru way
-    replSet[lruWay].access_num = 0;
+    replSet[lruWay].access_num = 0; //update access num
     return lruWay;
 }
 
@@ -244,13 +244,11 @@ void CACHE_REPLACEMENT_STATE::UpdateLRU( UINT32 setIndex, INT32 updateWayID )
 
 void  CACHE_REPLACEMENT_STATE::UpdateHYF( UINT32 setIndex, INT32 updateWayID)
 {
-    //UpdateLRU(setIndex,updateWayID);
-    //return;
     LINE_REPLACEMENT_STATE *replSet = repl[ setIndex ];
     UINT32 currLRUstackposition = replSet[updateWayID].LRUstackposition;
     replSet[updateWayID].access_num ++;
-    if(currLRUstackposition < protected_size)
-        //not protected
+    if(currLRUstackposition < A_size)
+        //the chosen cache block is not protected, or in list A
     {
         if(replSet[updateWayID].access_num >= threshold)
         //if(true)
@@ -260,40 +258,40 @@ void  CACHE_REPLACEMENT_STATE::UpdateHYF( UINT32 setIndex, INT32 updateWayID)
             for(UINT32 way = 0;way < assoc;way++)
             {
                 if(replSet[way].LRUstackposition > currLRUstackposition
-                     && replSet[way].LRUstackposition < protected_size)
-                    replSet[way].LRUstackposition--;
+                     && replSet[way].LRUstackposition < A_size)
+                    replSet[way].LRUstackposition--; //move cache block one by one
                 if(replSet[way].LRUstackposition == assoc - 1)
-                    protected_tail = way;
+                    protected_tail = way; //find the tail of list B
             }
-            replSet[updateWayID].LRUstackposition = assoc - 1;
-            replSet[protected_tail].LRUstackposition = protected_size - 1;
-            replSet[protected_tail].access_num = threshold - 1;
+            replSet[updateWayID].LRUstackposition = assoc - 1; //update stack pos
+            replSet[protected_tail].LRUstackposition = A_size - 1; //update stack pos
+            replSet[protected_tail].access_num = threshold - 1; //update access num
         }
         else
         {
             for(UINT32 way=0; way<assoc; way++) 
             {
                 if( replSet[way].LRUstackposition > currLRUstackposition 
-                    && replSet[way].LRUstackposition < protected_size - 1) 
+                    && replSet[way].LRUstackposition < A_size - 1) 
                 {
-                    replSet[way].LRUstackposition--;
+                    replSet[way].LRUstackposition--; //move cache block one by one
                 }
             }
-            replSet[updateWayID].LRUstackposition = protected_size - 1;
+            replSet[updateWayID].LRUstackposition = A_size - 1; //update stack pos
         }
     }
     else
-        //protected
+        //protected, or list B
     {
         for(UINT32 way=0; way<assoc; way++) 
         {
             if( replSet[way].LRUstackposition > currLRUstackposition 
                 && replSet[way].LRUstackposition < assoc - 1) 
             {
-                replSet[way].LRUstackposition--;
+                replSet[way].LRUstackposition--; //move cache block one by one
             }
         }
-        replSet[updateWayID].LRUstackposition = assoc - 1;
+        replSet[updateWayID].LRUstackposition = assoc - 1; //update stack pos
     }
 }
 
